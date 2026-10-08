@@ -1,0 +1,9 @@
+tool:
+  id: "fs_read"
+  description: "Read a file from disk"
+  schema:
+    type: "object"
+    properties:
+      path:
+        type: "string"
+    required: ["path"]
