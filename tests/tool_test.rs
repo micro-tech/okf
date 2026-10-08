@@ -7,8 +7,8 @@ fn test_load_tool_fs_read() {
     let tool = bundle.tools.get("fs_read").expect("Tool fs_read not found");
 
     assert_eq!(tool.id, "fs_read");
-    assert!(tool.schema.is_object());
-    assert!(tool.schema.get("properties").is_some());
+    assert!(tool.schema.as_ref().is_some_and(|s| s.is_object()));
+    assert!(tool.schema.as_ref().and_then(|s| s.get("properties")).is_some());
 }
 
 #[test]
@@ -18,8 +18,8 @@ fn test_load_tool_search() {
     let tool = bundle.tools.get("search").expect("Tool search not found");
 
     assert_eq!(tool.id, "search");
-    assert!(tool.schema.is_object());
-    assert!(tool.schema.get("properties").is_some());
+    assert!(tool.schema.as_ref().is_some_and(|s| s.is_object()));
+    assert!(tool.schema.as_ref().and_then(|s| s.get("properties")).is_some());
 }
 
 #[test]
@@ -36,6 +36,6 @@ fn test_tool_has_required_schema_fields() {
 
     for (id, tool) in &bundle.tools {
         assert!(!id.is_empty(), "Tool id should not be empty");
-        assert!(tool.schema.is_object(), "Tool {} should have object schema", id);
+        assert!(tool.schema.as_ref().is_some_and(|s| s.is_object()), "Tool {} should have object schema", id);
     }
 }

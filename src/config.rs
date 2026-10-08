@@ -1,3 +1,4 @@
+use crate::bundle::resolve_bundle_dir;
 use crate::error::OkfError;
 use crate::model::ServerConfig;
 use std::fs;
@@ -28,4 +29,23 @@ pub fn load_server_config(path: &str) -> Result<ServerConfig, OkfError> {
     }
 
     Ok(cfg)
+}
+
+/// Fail-fast wiring for `paths.default_bundle`: it must name a bundle that
+/// actually exists, otherwise the server refuses to start. (Phase 2's
+/// `GET /v1/bundles?default` will resolve it at request time.)
+pub fn validate_config(cfg: &ServerConfig) -> Result<(), OkfError> {
+    let default = cfg.paths.default_bundle.trim();
+    if default.is_empty() {
+        return Err(OkfError::Config(
+            "paths.default_bundle is empty".to_string(),
+        ));
+    }
+    resolve_bundle_dir(&cfg.paths.bundles_dir, default).map_err(|e| {
+        OkfError::Config(format!(
+            "paths.default_bundle '{default}' is not a loadable bundle: {e}"
+        ))
+    })?;
+    info!(default_bundle = %default, "Default bundle validated");
+    Ok(())
 }

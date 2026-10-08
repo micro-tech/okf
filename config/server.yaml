@@ -1,7 +1,18 @@
 server:
-  host: "0.0.0.0"
+  # Localhost by default. Bind "0.0.0.0" (or your tailnet IP) only when you
+  # mean to expose the server, and set a bearer token first — see below.
+  host: "127.0.0.1"
   port: 8080
 
 paths:
   bundles_dir: "./bundles"
+  # Must name an existing bundle; validated at startup (fail-fast).
+  # Phase 2's GET /v1/bundles?default resolves this.
   default_bundle: "shared"
+
+auth:
+  # Optional bearer token. When absent the server is fail-open (no auth).
+  # When set, wrong tokens are rejected everywhere and write endpoints
+  # (Phase 2) require it. Prefer the OKF_AUTH_TOKEN env var over writing
+  # the token into this file.
+  token: null

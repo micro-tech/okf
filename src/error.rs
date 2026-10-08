@@ -1,7 +1,9 @@
 use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
+    Json,
 };
+use serde_json::json;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -20,6 +22,12 @@ pub enum OkfError {
 
     #[error("Tool not found: {0}")]
     ToolNotFound(String),
+
+    #[error("Invalid bundle id '{0}': must be non-empty and contain only [A-Za-z0-9_-]")]
+    InvalidBundleId(String),
+
+    #[error("Unauthorized")]
+    Unauthorized,
 
     #[error("Duplicate tool ID '{id}' in bundle '{bundle_id}'")]
     DuplicateToolId { bundle_id: String, id: String },
@@ -42,15 +50,23 @@ pub enum OkfError {
     },
 
     #[error("Config error: {0}")]
-    #[allow(dead_code)]
     Config(String),
 }
 
 impl IntoResponse for OkfError {
     fn into_response(self) -> Response {
+        // 4xx responses may echo back the client-supplied id — that's the
+        // caller's own input, not a leak. 5xx responses are deliberately
+        // generic: the full error (paths, OS text) goes to the server log
+        // via the tracing calls at each call site, never to the client.
         let (status, message) = match &self {
             OkfError::BundleNotFound(id) => (StatusCode::NOT_FOUND, format!("Bundle not found: {id}")),
             OkfError::ToolNotFound(id) => (StatusCode::NOT_FOUND, format!("Tool not found: {id}")),
+            OkfError::InvalidBundleId(id) => (
+                StatusCode::BAD_REQUEST,
+                format!("Invalid bundle id: '{id}'"),
+            ),
+            OkfError::Unauthorized => (StatusCode::UNAUTHORIZED, "Unauthorized".to_string()),
             OkfError::DuplicateToolId { bundle_id, id } => (
                 StatusCode::BAD_REQUEST,
                 format!("Duplicate tool ID '{id}' in bundle '{bundle_id}'"),
@@ -67,11 +83,14 @@ impl IntoResponse for OkfError {
                 StatusCode::BAD_REQUEST,
                 format!("Invalid tool definition '{tool_id}' in bundle '{bundle_id}': {reason}"),
             ),
-            OkfError::Io(e) => (StatusCode::INTERNAL_SERVER_ERROR, format!("IO error: {e}")),
+            // serde_yaml errors carry line/column info, not filesystem paths —
+            // safe and genuinely useful for operators fixing their YAML.
             OkfError::Yaml(e) => (StatusCode::BAD_REQUEST, format!("YAML parse error: {e}")),
             OkfError::Json(e) => (StatusCode::BAD_REQUEST, format!("JSON parse error: {e}")),
-            OkfError::Config(msg) => (StatusCode::INTERNAL_SERVER_ERROR, format!("Config error: {msg}")),
+            // Trimmed on purpose: no OS error text, no paths (Reviewer item 9).
+            OkfError::Io(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".to_string()),
+            OkfError::Config(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".to_string()),
         };
-        (status, message).into_response()
+        (status, Json(json!({ "error": message }))).into_response()
     }
 }

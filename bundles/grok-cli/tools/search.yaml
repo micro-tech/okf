@@ -1,0 +1,9 @@
+tool:
+  id: "search"
+  description: "Search for files or content"
+  schema:
+    type: "object"
+    properties:
+      query:
+        type: "string"
+    required: ["query"]

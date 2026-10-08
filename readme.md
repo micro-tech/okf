@@ -56,15 +56,43 @@ okf/
 └─ py_okf/
    └─ reference Python OKF implementation
 Configuration
-config/server.yaml
-yaml
+`config/server.yaml` (override the path with `--config <path>`/`-c <path>` or the `OKF_CONFIG` env var):
+```yaml
 server:
-  host: "0.0.0.0"
+  # Localhost by default. Bind "0.0.0.0" (or your tailnet IP) only when you
+  # mean to expose the server — and set a bearer token first (see Security).
+  host: "127.0.0.1"
   port: 8080
 
 paths:
   bundles_dir: "./bundles"
+  # Must name an existing bundle; validated at startup (fail-fast).
   default_bundle: "shared"
+
+auth:
+  # Optional bearer token. Absent = fail-open (no auth, Helix-style).
+  # Prefer the OKF_AUTH_TOKEN env var over writing the token here.
+  token: null
+```
+
+## Security
+
+- **Bind:** default is `127.0.0.1`. Exposing `0.0.0.0` puts the bundle catalog
+  on your LAN — fine behind a firewall/tailnet you trust, but do it
+  deliberately and set a token first.
+- **Auth:** `Authorization: Bearer <token>`, via `auth.token` in the config
+  or the `OKF_AUTH_TOKEN` env var (env wins; blank = not configured).
+  No token configured → fail-open, everything passes.
+  Token configured → a *wrong* token is always rejected (`401`); reads stay
+  open without a token, while write endpoints (coming in Phase 2) require it.
+- **Input:** `bundle_id` is whitelisted to `[A-Za-z0-9_-]` and the resolved
+  path is canonicalized and verified to stay under `bundles_dir` — `..`,
+  separators, and symlink escapes are rejected with `400`.
+- **Errors:** `500` responses are generic JSON (`{"error":"..."}`) — no
+  filesystem paths or OS error text leak to clients. Full details go to the
+  server log.
+- **Service user:** the systemd unit runs as a dedicated `okf` user, never
+  root (see `scripts/install_systemd.sh`).
 Bundle Format
 Example bundle: bundles/helix/okf.yaml
 yaml
@@ -90,7 +118,7 @@ tool:
         type: "string"
     required: ["path"]
 REST API
-Health Check
+Health Check (returns JSON `{"status":"ok","service":"okf-server","version":"..."}`)
 Code
 GET /health
 Get bundle metadata
@@ -126,9 +154,16 @@ Description=OKF Server
 ExecStart=/usr/local/bin/okf
 WorkingDirectory=/opt/okf
 Restart=always
+User=okf
+Group=okf
+NoNewPrivileges=true
+ProtectSystem=full
+PrivateTmp=true
 
 [Install]
 WantedBy=multi-user.target
+(`scripts/install_systemd.sh` generates this, creates the `okf` user, and
+sets ownership — run it instead of hand-writing the unit.)
 Using OKF with Grok‑CLI
 Grok‑CLI can fetch tool schemas dynamically:
 

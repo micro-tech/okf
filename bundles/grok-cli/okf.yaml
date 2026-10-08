@@ -1,0 +1,10 @@
+bundle:
+  id: "grok-cli"
+  description: "OKF bundle for grok-cli agent"
+  version: "0.1.0"
+
+tools:
+  - id: "fs_read"
+    file: "tools/fs_read.yaml"
+  - id: "search"
+    file: "tools/search.yaml"

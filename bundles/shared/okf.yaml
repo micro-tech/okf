@@ -1,0 +1,8 @@
+bundle:
+  id: "shared"
+  description: "OKF bundle for shared agent knowledge"
+  version: "0.1.0"
+
+tools:
+  - id: "ping"
+    file: "tools/ping.yaml"

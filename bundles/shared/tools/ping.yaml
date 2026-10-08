@@ -1,0 +1,6 @@
+tool:
+  id: "ping"
+  description: "Health check probe for the OKF shared bundle"
+  schema:
+    type: "object"
+    properties: {}
